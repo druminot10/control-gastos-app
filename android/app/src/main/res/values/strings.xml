@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mis gastos</string>
+    <string name="title_activity_main">Mis gastos</string>
+    <string name="package_name">cl.druminot10.controlgastos</string>
+    <string name="custom_url_scheme">cl.druminot10.controlgastos</string>
+</resources>

@@ -19,6 +19,7 @@ create table public.expenses (
   category_id uuid not null,
   amount numeric(12, 2) not null check (amount > 0),
   note text,
+  spent_at time without time zone not null default ((now() at time zone 'America/Santiago')::time),
   spent_on date not null default current_date,
   created_at timestamptz not null default now(),
   constraint expenses_category_owner_fkey
