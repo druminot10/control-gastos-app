@@ -4,9 +4,9 @@ Aplicación web progresiva (PWA), adaptable a móviles y en español para regist
 
 - Inicio de sesión Google con Supabase y datos por usuario protegidos mediante RLS.
 - Gastos y secciones sincronizados con Supabase, con emojis sugeridos.
-- Vistas por día, semana, mes y año, con navegación y detalle por día.
+- Sección “Mis gastos” con totales y calendarios por día, semana, mes y año; el año resume cada mes, cada mes desglosa los días, y al seleccionar un día se abre su tabla de gastos.
 - Filtro por sección, modo claro/oscuro y saludo según la hora.
-- Confirmaciones propias al eliminar gastos o secciones.
+- Confirmaciones propias al eliminar gastos y archivo/restauración de secciones sin borrar el historial asociado.
 - Instalación en el teléfono y caché de la aplicación para abrirla sin conexión.
 
 ## Requisitos
@@ -30,7 +30,9 @@ npm run preview
 
 ## Supabase
 
-El esquema de base de datos se encuentra en [`supabase/schema.sql`](./supabase/schema.sql). Ejecútalo desde **SQL Editor** en tu proyecto Supabase. Crea perfiles y secciones iniciales al registrar una cuenta, aplica RLS por usuario y valida las fechas de los gastos. Si ya ejecutaste el esquema anteriormente, ejecuta la actualización [`202611020001_add_expense_time.sql`](./supabase/migrations/202611020001_add_expense_time.sql). Los gastos antiguos recibirán la hora local en que se aplique la migración; su hora original no está disponible.
+El esquema de base de datos se encuentra en [`supabase/schema.sql`](./supabase/schema.sql). Ejecútalo desde **SQL Editor** en tu proyecto Supabase. Crea perfiles y secciones iniciales al registrar una cuenta, aplica RLS por usuario y valida las fechas de los gastos. Si la base de datos ya está creada, ejecuta las migraciones de [`supabase/migrations/`](./supabase/migrations/) en orden: `202611020001_add_expense_time.sql` y `202611030001_archive_categories.sql`. Los gastos antiguos recibirán la hora local en que se aplique la primera migración; su hora original no está disponible.
+
+Al archivar una sección, deja de ofrecerse para gastos nuevos, pero conserva su nombre y todos sus gastos históricos. Se puede restaurar desde la administración de secciones. La base de datos también impide borrar secciones y asignar nuevos gastos a una sección archivada.
 
 Para el desarrollo local, copia [`.env.example`](./.env.example) a `.env` y completa la URL del proyecto y su clave pública `anon`/publishable. No uses ni publiques la clave `service_role`; `.env` está excluido de Git. La aplicación no recurre silenciosamente a almacenamiento local cuando falla la conexión.
 

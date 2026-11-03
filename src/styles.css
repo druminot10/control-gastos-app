@@ -355,6 +355,25 @@ h1 span {
   gap: 7px;
 }
 
+.period-section-heading {
+  align-items: center;
+  margin-bottom: 17px;
+}
+
+.period-total-summary {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.period-total-summary strong {
+  color: var(--green);
+  font-family: "Manrope", sans-serif;
+  font-size: 18px;
+}
+
 .week-overview {
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
@@ -431,9 +450,11 @@ h1 span {
   position: relative;
   display: flex;
   min-width: 0;
-  min-height: 39px;
+  min-height: 59px;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 3px;
   border: 1px solid transparent;
   border-radius: 9px;
   background: transparent;
@@ -450,13 +471,7 @@ h1 span {
 }
 
 .calendar-day.has-expenses::after {
-  position: absolute;
-  bottom: 3px;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--orange);
-  content: "";
+  content: none;
 }
 
 .calendar-day:disabled {
@@ -475,22 +490,17 @@ h1 span {
 }
 
 .calendar-day-total {
-  position: absolute;
-  z-index: 1;
-  top: 100%;
-  left: 50%;
   display: none;
-  padding: 3px 5px;
-  transform: translateX(-50%);
-  border-radius: 5px;
-  background: var(--ink);
-  color: var(--surface);
-  font-size: 9px;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--green);
+  font-size: clamp(7px, 2vw, 9px);
+  font-weight: 700;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.calendar-day.has-expenses:hover .calendar-day-total,
-.calendar-day.has-expenses:focus-visible .calendar-day-total {
+.calendar-day.has-expenses .calendar-day-total {
   display: block;
 }
 
@@ -645,6 +655,86 @@ h1 span {
   font-family: "Manrope", sans-serif;
   font-size: 15px;
   font-weight: 700;
+}
+
+.table-hint,
+.empty-table-state {
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.day-details-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -8px 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.day-details-total strong {
+  color: var(--green);
+  font-family: "Manrope", sans-serif;
+  font-size: 20px;
+}
+
+.expense-table-wrap {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.expense-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  color: var(--ink);
+  font-size: 11px;
+  text-align: left;
+}
+
+.expense-table th,
+.expense-table td {
+  padding: 10px 11px;
+  border-bottom: 1px solid var(--border-soft);
+  vertical-align: middle;
+}
+
+.expense-table thead th,
+.expense-table tfoot th,
+.expense-table tfoot td {
+  background: var(--surface-soft);
+  font-weight: 700;
+}
+
+.expense-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.expense-table-name {
+  font-weight: 700;
+}
+
+.expense-table-amount {
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.expense-table-actions {
+  width: 42px;
+  text-align: center;
+}
+
+.expense-table-actions .delete-button {
+  margin: auto;
 }
 
 .expense-toolbar-actions {
@@ -892,6 +982,11 @@ h2 {
   box-shadow: var(--shadow);
 }
 
+.day-details-dialog {
+  width: min(100% - 24px, 920px);
+  max-width: 920px;
+}
+
 .expense-dialog::backdrop {
   background: rgb(22 33 25 / 40%);
   backdrop-filter: blur(3px);
@@ -1054,17 +1149,23 @@ h2 {
   font-weight: 600;
 }
 
+.category-archived-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
 .category-fixed-label {
   color: var(--muted);
   font-size: 10px;
 }
 
-.category-delete-button {
+.category-action-button {
   padding: 6px 8px;
-  border: 0;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fae9e7;
-  color: #a94339;
+  background: var(--surface-soft);
+  color: var(--ink);
   cursor: pointer;
   font-size: 10px;
   font-weight: 700;
@@ -1360,7 +1461,7 @@ h2 {
 
 .submit-button:disabled,
 .category-add-button:disabled,
-.category-delete-button:disabled,
+.category-action-button:disabled,
 .cancel-button:disabled,
 .danger-button:disabled {
   cursor: wait;
@@ -1480,6 +1581,20 @@ h2 {
 
   .section-heading {
     margin-bottom: 13px;
+  }
+
+  .period-section-heading {
+    align-items: flex-start;
+  }
+
+  .period-total-summary strong {
+    font-size: 16px;
+  }
+
+  .calendar-day {
+    min-height: 52px;
+    gap: 2px;
+    font-size: 11px;
   }
 
   .expense-toolbar {

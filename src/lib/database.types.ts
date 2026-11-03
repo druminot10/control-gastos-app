@@ -10,9 +10,9 @@ export type Database = {
         Relationships: [];
       };
       categories: {
-        Row: { id: string; user_id: string; name: string; emoji: string; created_at: string };
-        Insert: { id?: string; user_id?: string; name: string; emoji?: string; created_at?: string };
-        Update: { id?: string; user_id?: string; name?: string; emoji?: string; created_at?: string };
+        Row: { id: string; user_id: string; name: string; emoji: string; is_archived: boolean; created_at: string };
+        Insert: { id?: string; user_id?: string; name: string; emoji?: string; is_archived?: boolean; created_at?: string };
+        Update: { id?: string; user_id?: string; name?: string; emoji?: string; is_archived?: boolean; created_at?: string };
         Relationships: [];
       };
       expenses: {

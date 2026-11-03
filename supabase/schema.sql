@@ -8,6 +8,7 @@ create table public.categories (
   user_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
   name text not null check (length(btrim(name)) between 1 and 24),
   emoji text not null default '✨',
+  is_archived boolean not null default false,
   created_at timestamptz not null default now(),
   unique (user_id, name),
   unique (id, user_id)
@@ -25,7 +26,7 @@ create table public.expenses (
   constraint expenses_category_owner_fkey
     foreign key (category_id, user_id)
     references public.categories (id, user_id)
-    on delete cascade
+    on delete restrict
 );
 
 create index expenses_user_id_spent_on_idx on public.expenses (user_id, spent_on);
@@ -51,9 +52,6 @@ create policy "Categories are insertable by their owner"
 create policy "Categories are updatable by their owner"
   on public.categories for update to authenticated using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
-create policy "Categories are deletable by their owner"
-  on public.categories for delete to authenticated using ((select auth.uid()) = user_id);
-
 create policy "Expenses are readable by their owner"
   on public.expenses for select to authenticated using ((select auth.uid()) = user_id);
 create policy "Expenses are insertable by their owner"
@@ -140,6 +138,33 @@ create trigger expenses_validate_date
   before insert or update of spent_on, user_id on public.expenses
   for each row execute procedure public.validate_expense_date();
 
+create function public.ensure_expense_category_is_active()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  category_is_archived boolean;
+begin
+  select c.is_archived
+    into category_is_archived
+    from public.categories as c
+    where c.id = new.category_id and c.user_id = new.user_id
+    for update;
+
+  if category_is_archived then
+    raise exception 'No se pueden registrar gastos en secciones archivadas.';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger expenses_require_active_category
+  before insert or update of category_id, user_id on public.expenses
+  for each row execute procedure public.ensure_expense_category_is_active();
+
 grant select, insert, update, delete on public.profiles to authenticated;
-grant select, insert, update, delete on public.categories to authenticated;
+grant select, insert, update on public.categories to authenticated;
 grant select, insert, update, delete on public.expenses to authenticated;

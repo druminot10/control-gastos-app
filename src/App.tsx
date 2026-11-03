@@ -7,7 +7,7 @@ import type { FormEvent, ReactNode } from "react";
 import { supabase } from "./lib/supabase";
 
 type Period = "day" | "week" | "month" | "year";
-type Category = { id: string; name: string; emoji: string };
+type Category = { id: string; name: string; emoji: string; is_archived: boolean };
 type Expense = {
   id: string;
   description: string;
@@ -20,6 +20,7 @@ type Expense = {
 type PendingConfirmation = {
   title: string;
   message: string;
+  confirmLabel?: string;
   onConfirm: () => Promise<void>;
 };
 
@@ -156,7 +157,6 @@ export default function App() {
   const [period, setPeriod] = useState<Period>("month");
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedMonth, setSelectedMonth] = useState(today.slice(0, 7));
-  const [selectedYearDay, setSelectedYearDay] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [theme, setTheme] = useState(() => {
     try {
@@ -168,6 +168,7 @@ export default function App() {
   });
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [dayDetailsDate, setDayDetailsDate] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<PendingConfirmation | null>(null);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
@@ -181,6 +182,7 @@ export default function App() {
   const [expenseDate, setExpenseDate] = useState(today);
   const [expenseTime, setExpenseTime] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
+  const activeCategories = useMemo(() => categories.filter((category) => !category.is_archived), [categories]);
 
   const userName = useMemo(() => {
     const metadata = session?.user.user_metadata;
@@ -189,16 +191,17 @@ export default function App() {
   }, [session]);
 
   const [rangeStart, rangeEnd] = periodRange(period, selectedDate);
-  const visibleExpenses = useMemo(() => {
-    let rows = expenses.filter((expense) => expense.date >= rangeStart && expense.date <= rangeEnd);
-    if (period === "day" || period === "week" || period === "month" || selectedYearDay) {
-      rows = rows.filter((expense) => expense.date === selectedDate);
-    } else if (selectedMonth) {
-      rows = rows.filter((expense) => expense.date.startsWith(selectedMonth));
-    }
-    if (categoryFilter !== "all") rows = rows.filter((expense) => expense.categoryId === categoryFilter);
-    return [...rows].sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
-  }, [expenses, rangeEnd, rangeStart, period, selectedDate, selectedMonth, selectedYearDay, categoryFilter]);
+  const periodExpenses = useMemo(() => expenses.filter((expense) =>
+    expense.date >= rangeStart && expense.date <= rangeEnd &&
+    (categoryFilter === "all" || expense.categoryId === categoryFilter))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time)),
+  [expenses, rangeEnd, rangeStart, categoryFilter]);
+  const selectedDayExpenses = useMemo(() => expenses.filter((expense) =>
+    expense.date === (dayDetailsDate ?? selectedDate) &&
+    (categoryFilter === "all" || expense.categoryId === categoryFilter))
+    .sort((a, b) => b.time.localeCompare(a.time)),
+  [expenses, dayDetailsDate, selectedDate, categoryFilter]);
+  const periodTotal = periodExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   const monthlyTotal = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   const loadSequence = useRef(0);
@@ -209,12 +212,12 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      const [start, end] = periodRange(activePeriod, anchorDate);
+      const [start, end] = periodRange(activePeriod === "day" ? "month" : activePeriod, anchorDate);
       const monthStart = `${today.slice(0, 7)}-01`;
       const monthEnd = localDate(new Date(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0));
       const [profileResult, categoryResult, expenseResult, monthResult] = await Promise.all([
         supabase.from("profiles").select("created_at").eq("id", userId).single(),
-        supabase.from("categories").select("id, name, emoji").order("created_at"),
+        supabase.from("categories").select("id, name, emoji, is_archived").order("created_at"),
         supabase.from("expenses")
           .select("id, category_id, amount, note, spent_on, spent_at")
           .gte("spent_on", start)
@@ -431,7 +434,6 @@ export default function App() {
       setSelectedDate(expenseDate);
       if (period === "year") {
         setSelectedMonth(expenseDate.slice(0, 7));
-        setSelectedYearDay(true);
       }
       setExpenseDialogOpen(false);
     } catch (insertError) {
@@ -456,7 +458,7 @@ export default function App() {
     try {
       const { data, error: insertError } = await supabase.from("categories")
         .insert({ user_id: session.user.id, name, emoji: suggestEmoji(name) })
-        .select("id, name, emoji").single();
+        .select("id, name, emoji, is_archived").single();
       if (insertError) throw insertError;
       setCategories((current) => [...current, data]);
       setNewCategoryName("");
@@ -485,29 +487,31 @@ export default function App() {
     }
   }
 
-  async function deleteCategory(categoryId: string) {
+  async function setCategoryArchived(categoryId: string, isArchived: boolean) {
     if (!supabase) return;
     setBusy(true);
     try {
-      const { error: deleteError } = await supabase.from("categories").delete().eq("id", categoryId);
-      if (deleteError) throw deleteError;
-      setCategories((current) => current.filter((category) => category.id !== categoryId));
-      setExpenses((current) => current.filter((expense) => expense.categoryId !== categoryId));
-      setMonthlyExpenses((current) => current.filter((expense) => expense.categoryId !== categoryId));
-      if (categoryFilter === categoryId) setCategoryFilter("all");
+      const { data, error: updateError } = await supabase.from("categories")
+        .update({ is_archived: isArchived })
+        .eq("id", categoryId)
+        .select("id, is_archived")
+        .single();
+      if (updateError) throw updateError;
+      setCategories((current) => current.map((category) =>
+        category.id === data.id ? { ...category, is_archived: data.is_archived } : category));
       setConfirmation(null);
-    } catch (deleteError) {
-      console.error("No se pudo eliminar la sección de Supabase.", deleteError);
-      setCategoryError("No se pudo eliminar la sección. Inténtalo otra vez.");
+    } catch (updateError) {
+      console.error("No se pudo actualizar el estado de la sección en Supabase.", updateError);
+      setCategoryError("No se pudo actualizar la sección. Inténtalo otra vez.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function requestCategoryDeletion(category: Category) {
+  async function requestCategoryArchival(category: Category) {
     if (!supabase) return;
-    if (categories.length <= 1) {
-      setCategoryError("Mantén al menos una sección para registrar gastos.");
+    if (activeCategories.length <= 1) {
+      setCategoryError("Mantén al menos una sección activa para registrar gastos.");
       return;
     }
     setCategoryError("");
@@ -517,14 +521,27 @@ export default function App() {
         .eq("category_id", category.id);
       if (countError) throw countError;
       openConfirmation({
-        title: `¿Eliminar ${category.name}?`,
-        message: count ? `Se eliminarán también ${count} ${count === 1 ? "gasto asociado" : "gastos asociados"}. Esta acción no se puede deshacer.` : "No tiene gastos asociados. Esta acción no se puede deshacer.",
-        onConfirm: () => deleteCategory(category.id),
+        title: `¿Archivar ${category.name}?`,
+        message: count
+          ? `La sección dejará de estar disponible para nuevos gastos. Se conservarán su nombre y sus ${count} ${count === 1 ? "gasto histórico asociado" : "gastos históricos asociados"}.`
+          : "La sección se conservará, pero dejará de aparecer para nuevos gastos. Puedes restaurarla cuando quieras.",
+        confirmLabel: "Archivar",
+        onConfirm: () => setCategoryArchived(category.id, true),
       });
     } catch (countError) {
       console.error("No se pudo contar los gastos de la sección.", countError);
-      setCategoryError("No se pudo comprobar cuántos gastos tiene la sección. Inténtalo otra vez.");
+      setCategoryError("No se pudo comprobar cuántos gastos se conservarán. Inténtalo otra vez.");
     }
+  }
+
+  function requestCategoryRestoration(category: Category) {
+    setCategoryError("");
+    openConfirmation({
+      title: `¿Restaurar ${category.name}?`,
+      message: "La sección volverá a estar disponible para registrar nuevos gastos.",
+      confirmLabel: "Restaurar",
+      onConfirm: () => setCategoryArchived(category.id, false),
+    });
   }
 
   function openExpenseForm() {
@@ -532,7 +549,7 @@ export default function App() {
     setExpenseName("");
     setExpenseNote("");
     setExpenseAmount("");
-    setExpenseCategory(categories[0]?.id ?? "");
+    setExpenseCategory(activeCategories[0]?.id ?? "");
     setExpenseDate(period === "year" ? today : selectedDate);
     const now = new Date();
     setExpenseTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
@@ -543,7 +560,6 @@ export default function App() {
     setPeriod(nextPeriod);
     setSelectedDate(today);
     setSelectedMonth(today.slice(0, 7));
-    setSelectedYearDay(false);
   }
 
   function shiftPeriod(amount: number) {
@@ -552,11 +568,12 @@ export default function App() {
     if (candidate > today || start < profileDate) return;
     setSelectedDate(candidate);
     setSelectedMonth(candidate.slice(0, 7));
-    setSelectedYearDay(false);
   }
 
-  const rangeStartDate = parseLocalDate(rangeStart);
-  const rangeEndDate = parseLocalDate(rangeEnd);
+  const calendarMonthStart = parseLocalDate(`${selectedDate.slice(0, 7)}-01`);
+  const calendarMonthEnd = new Date(calendarMonthStart.getFullYear(), calendarMonthStart.getMonth() + 1, 0);
+  const selectedMonthStart = parseLocalDate(`${selectedMonth}-01`);
+  const selectedMonthEnd = new Date(selectedMonthStart.getFullYear(), selectedMonthStart.getMonth() + 1, 0);
   const previousDate = shiftDate(selectedDate, period, -1);
   const nextDate = shiftDate(selectedDate, period, 1);
   const previousBlocked = periodRange(period, previousDate)[1] < profileDate;
@@ -672,7 +689,15 @@ export default function App() {
             </article>
           </section>
 
-          <section className="period-section" aria-label="Explorar gastos por período">
+          <section className="period-section" aria-label="Mis gastos por período">
+            <div className="section-heading period-section-heading">
+              <div><p className="eyebrow">TU HISTORIAL</p><h2>Mis gastos</h2></div>
+              <div className="period-total-summary">
+                <span>Total {period === "day" ? "del día" : period === "week" ? "de la semana" : period === "month" ? "del mes" : "del año"}</span>
+                <strong>{formatCurrency(periodTotal)}</strong>
+                <span>{periodExpenses.length} {periodExpenses.length === 1 ? "gasto" : "gastos"}</span>
+              </div>
+            </div>
             <div className="period-tabs" role="tablist" aria-label="Período">
               {(["day", "week", "month", "year"] as const).map((value) => (
                 <button key={value} className={`period-tab${period === value ? " is-active" : ""}`} type="button" role="tab"
@@ -697,25 +722,36 @@ export default function App() {
                   const allowed = date >= profileDate && date <= today;
                   return <OverviewButton key={date} title={formatDate(date, { weekday: "short" })}
                     subtitle={formatDate(date, { day: "numeric", month: "short" })} total={totalFor(date)}
-                    disabled={!allowed} selected={date === selectedDate} onClick={() => setSelectedDate(date)} />;
+                    disabled={!allowed} selected={date === selectedDate} onClick={() => {
+                      setSelectedDate(date);
+                      setDayDetailsDate(date);
+                    }} />;
                 })}
               </div>
             )}
-            {period === "month" && (
-              <div className="period-overview month-overview">
-                {["L", "M", "X", "J", "V", "S", "D"].map((day, index) => <span className="calendar-weekday" key={`${day}-${index}`}>{day}</span>)}
-                {Array.from({ length: (rangeStartDate.getDay() + 6) % 7 }, (_, index) => <span className="calendar-spacer" key={`blank-${index}`} />)}
-                {Array.from({ length: rangeEndDate.getDate() }, (_, index) => {
-                  const date = localDate(new Date(rangeStartDate.getFullYear(), rangeStartDate.getMonth(), index + 1));
+            {(period === "day" || period === "month") && (
+              <>
+                {period === "day" && <h3 className="breakdown-heading">{new Intl.DateTimeFormat("es-CL", {
+                  month: "long", year: "numeric",
+                }).format(calendarMonthStart)}</h3>}
+                <div className="period-overview month-overview">
+                  {["L", "M", "X", "J", "V", "S", "D"].map((day, index) => <span className="calendar-weekday" key={`${day}-${index}`}>{day}</span>)}
+                  {Array.from({ length: (calendarMonthStart.getDay() + 6) % 7 }, (_, index) => <span className="calendar-spacer" key={`blank-${index}`} />)}
+                  {Array.from({ length: calendarMonthEnd.getDate() }, (_, index) => {
+                    const date = localDate(new Date(calendarMonthStart.getFullYear(), calendarMonthStart.getMonth(), index + 1));
                   const allowed = date >= profileDate && date <= today;
                   return <button key={date} type="button" className={`calendar-day${date === selectedDate ? " is-selected" : ""}${totalFor(date) ? " has-expenses" : ""}`}
                     disabled={!allowed} aria-label={`${date.slice(-2)} de ${formatDate(date, { month: "long" })}${allowed ? "" : ", bloqueado"}`}
-                    onClick={() => setSelectedDate(date)}>
+                    onClick={() => {
+                      setSelectedDate(date);
+                      setDayDetailsDate(date);
+                    }}>
                     <span>{index + 1}</span>{totalFor(date) > 0 && <span className="calendar-day-total">{formatCurrency(totalFor(date))}</span>}
                     {!allowed && <span className="calendar-lock" aria-hidden="true">🔒</span>}
                   </button>;
-                })}
-              </div>
+                  })}
+                </div>
+              </>
             )}
             {period === "year" && (
               <>
@@ -726,35 +762,43 @@ export default function App() {
                     const monthStart = `${key}-01`;
                     const monthEnd = localDate(new Date(Number(year), index + 1, 0));
                     const allowed = monthStart <= today && monthEnd >= profileDate;
-                    const monthRows = expenses.filter((expense) => expense.date.startsWith(key) &&
-                      (categoryFilter === "all" || expense.categoryId === categoryFilter));
+                    const monthRows = periodExpenses.filter((expense) => expense.date.startsWith(key));
+                    const monthDay = monthStart < profileDate ? profileDate : monthStart;
                     return <OverviewButton key={key}
                       title={new Intl.DateTimeFormat("es-CL", { month: "long" }).format(new Date(Number(year), index, 1))}
                       subtitle={`${monthRows.length} ${monthRows.length === 1 ? "gasto" : "gastos"}`}
                       total={monthRows.reduce((sum, expense) => sum + expense.amount, 0)} disabled={!allowed}
                       selected={selectedMonth === key} onClick={() => {
                         setSelectedMonth(key);
-                        setSelectedDate(key === today.slice(0, 7) ? today : monthStart);
-                        setSelectedYearDay(false);
+                        setSelectedDate(monthDay > today ? today : monthDay);
                       }} />;
                   })}
                 </div>
-                {selectedMonth && !selectedYearDay && (
+                {selectedMonth && (
                   <div className="year-day-breakdown">
-                    <h3 className="breakdown-heading">Días de {new Intl.DateTimeFormat("es-CL", {
+                    <h3 className="breakdown-heading">Calendario de {new Intl.DateTimeFormat("es-CL", {
                       month: "long", year: "numeric",
-                    }).format(parseLocalDate(`${selectedMonth}-01`))}</h3>
-                    <div className="breakdown-list">
-                      {Array.from({ length: new Date(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)), 0).getDate() }, (_, index) => {
+                    }).format(selectedMonthStart)}</h3>
+                    <div className="period-overview month-overview">
+                      {["L", "M", "X", "J", "V", "S", "D"].map((day, index) =>
+                        <span className="calendar-weekday" key={`${day}-${index}`}>{day}</span>)}
+                      {Array.from({ length: (selectedMonthStart.getDay() + 6) % 7 }, (_, index) =>
+                        <span className="calendar-spacer" key={`year-blank-${index}`} />)}
+                      {Array.from({ length: selectedMonthEnd.getDate() }, (_, index) => {
                         const date = `${selectedMonth}-${String(index + 1).padStart(2, "0")}`;
-                        if (date < profileDate || date > today) return null;
-                        const count = expenses.filter((expense) => expense.date === date).length;
-                        return <OverviewButton key={date} title={formatDate(date, { weekday: "short", day: "numeric" })}
-                          subtitle={`${count} ${count === 1 ? "gasto" : "gastos"}`} total={totalFor(date)}
-                          selected={date === selectedDate} onClick={() => {
+                        const allowed = date >= profileDate && date <= today;
+                        return <button key={date} type="button"
+                          className={`calendar-day${date === selectedDate ? " is-selected" : ""}${totalFor(date) ? " has-expenses" : ""}`}
+                          disabled={!allowed}
+                          aria-label={`${date.slice(-2)} de ${formatDate(date, { month: "long" })}${allowed ? "" : ", bloqueado"}`}
+                          onClick={() => {
                             setSelectedDate(date);
-                            setSelectedYearDay(true);
-                          }} />;
+                            setDayDetailsDate(date);
+                          }}>
+                          <span>{index + 1}</span>
+                          {totalFor(date) > 0 && <span className="calendar-day-total">{formatCurrency(totalFor(date))}</span>}
+                          {!allowed && <span className="calendar-lock" aria-hidden="true">🔒</span>}
+                        </button>;
                       })}
                     </div>
                   </div>
@@ -764,18 +808,18 @@ export default function App() {
           </section>
 
           <section className="spending-section" aria-labelledby="spending-title">
-            <div className="section-heading"><div><p className="eyebrow">TU ACTIVIDAD</p><h2 id="spending-title">Gastos del período</h2></div></div>
+            <div className="section-heading"><div><p className="eyebrow">DETALLE</p><h2 id="spending-title">{period === "day" ? "Gastos del día" : "Detalle del día"}</h2></div></div>
             <div className="expense-toolbar">
               <div className="detail-summary">
-                <p className="detail-caption">{period === "year" && !selectedYearDay ? "Selecciona un día para ver sus gastos." : formatDate(selectedDate, { weekday: "long", day: "numeric", month: "long" })}</p>
-                <span className="detail-total">{formatCurrency(visibleExpenses.reduce((sum, expense) => sum + expense.amount, 0))}</span>
+                <p className="detail-caption">{formatDate(selectedDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+                <span className="detail-total">{formatCurrency(selectedDayExpenses.reduce((sum, expense) => sum + expense.amount, 0))}</span>
               </div>
               <div className="expense-toolbar-actions">
                 <button className="manage-categories-button" type="button" onClick={() => setCategoryDialogOpen(true)}>Secciones</button>
                 <label className="filter-wrap"><span className="visually-hidden">Filtrar gastos</span>
                   <select aria-label="Filtrar por sección" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
                     <option value="all">Todas</option>
-                    {categories.map((category) => <option key={category.id} value={category.id}>{category.emoji} {category.name}</option>)}
+                    {categories.map((category) => <option key={category.id} value={category.id}>{category.emoji} {category.name}{category.is_archived ? " (Archivada)" : ""}</option>)}
                   </select>
                 </label>
               </div>
@@ -788,35 +832,37 @@ export default function App() {
               </button>
             </div>}
             {loading ? <p className="loading-state" role="status">Cargando tus gastos…</p> :
-              period === "year" && !selectedYearDay ? <p className="empty-state">Elige un día para revisar el detalle.</p> :
-                visibleExpenses.length ? <div className="expense-list" aria-live="polite">
-                  {visibleExpenses.map((expense) => {
-                    const category = categories.find((item) => item.id === expense.categoryId);
-                    return <article className="expense-item" key={expense.id}>
-                      <span className="category-icon" aria-hidden="true">{suggestEmoji(expense.description) === "✨" ? category?.emoji ?? "✨" : suggestEmoji(expense.description)}</span>
-                      <div className="expense-info">
-                        <p className="expense-name">{expense.description}</p>
-                        <p className="expense-meta">{category?.emoji ?? "✨"} {category?.name ?? "Sección"} · {formatDate(expense.date)} · {expense.time}</p>
-                        {expense.note && <p className="expense-description-note">{expense.note}</p>}
-                      </div>
-                      <span className="expense-amount">{formatCurrency(expense.amount)}</span>
-                      <button className="delete-button" type="button" aria-label={`Eliminar gasto: ${expense.description}`}
-                        onClick={() => openConfirmation({
-                          title: "¿Eliminar este gasto?",
-                          message: `Se eliminará “${expense.description}” por ${formatCurrency(expense.amount)}. Esta acción no se puede deshacer.`,
-                          onConfirm: () => deleteExpense(expense.id),
-                        })}>×</button>
-                    </article>;
-                  })}
-                </div> : <div className="empty-state"><div className="empty-icon" aria-hidden="true">✳</div>
-                  <h3>Un día para empezar</h3><p>No hay gastos para esta fecha. Puedes agregar uno cuando quieras.</p>
-                  <button className="text-button" type="button" onClick={openExpenseForm}>Agregar un gasto <span aria-hidden="true">↗</span></button>
-                </div>}
+              period === "day"
+                ? <ExpenseTable expenses={selectedDayExpenses} categories={categories}
+                    onDelete={(expense) => openConfirmation({
+                      title: "¿Eliminar este gasto?",
+                      message: `Se eliminará “${expense.description}” por ${formatCurrency(expense.amount)}. Esta acción no se puede deshacer.`,
+                      onConfirm: () => deleteExpense(expense.id),
+                    })} />
+                : <p className="table-hint">Selecciona un día del calendario para abrir sus gastos detallados.</p>}
           </section>
         </div>
       </main>
 
       <button className="add-button" type="button" onClick={openExpenseForm}><span className="add-symbol" aria-hidden="true">+</span><span>Agregar gasto</span></button>
+
+      {dayDetailsDate && <Modal onClose={() => setDayDetailsDate(null)} className="expense-dialog day-details-dialog">
+        <div className="expense-form">
+          <DialogHeading eyebrow="DETALLE DIARIO"
+            title={formatDate(dayDetailsDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            onClose={() => setDayDetailsDate(null)} />
+          <div className="day-details-total">
+            <span>Total del día</span>
+            <strong>{formatCurrency(selectedDayExpenses.reduce((sum, expense) => sum + expense.amount, 0))}</strong>
+          </div>
+          <ExpenseTable expenses={selectedDayExpenses} categories={categories}
+            onDelete={(expense) => openConfirmation({
+              title: "¿Eliminar este gasto?",
+              message: `Se eliminará “${expense.description}” por ${formatCurrency(expense.amount)}. Esta acción no se puede deshacer.`,
+              onConfirm: () => deleteExpense(expense.id),
+            })} />
+        </div>
+      </Modal>}
 
       {expenseDialogOpen && <Modal onClose={() => setExpenseDialogOpen(false)} className="expense-dialog">
         <form className="expense-form" onSubmit={(event) => void submitExpense(event)}>
@@ -830,7 +876,7 @@ export default function App() {
               onClick={() => {
                 setExpenseName(preset.description);
                 setExpenseAmount(String(preset.amount));
-                const transport = categories.find((category) => normalizeText(category.name) === "transporte");
+                const transport = activeCategories.find((category) => normalizeText(category.name) === "transporte");
                 if (transport) setExpenseCategory(transport.id);
               }}>{preset.emoji} {preset.description} <span>{formatCurrency(preset.amount)}</span></button>)}
           </div></div>
@@ -842,7 +888,7 @@ export default function App() {
           </div>
           <div className="field-group"><label className="field-label" htmlFor="expense-category">Sección</label>
             <select id="expense-category" value={expenseCategory} onChange={(event) => setExpenseCategory(event.target.value)} required>
-              {categories.map((category) => <option key={category.id} value={category.id}>{category.emoji} {category.name}</option>)}
+              {activeCategories.map((category) => <option key={category.id} value={category.id}>{category.emoji} {category.name}</option>)}
             </select>
           </div>
           <div className="field-row">
@@ -875,8 +921,15 @@ export default function App() {
           <div className="category-management-list">
             {categories.map((category) => {
               return <div className="category-management-item" key={category.id}>
-                <span className="category-management-name">{category.emoji} {category.name}</span>
-                <button className="category-delete-button" type="button" disabled={busy} onClick={() => void requestCategoryDeletion(category)}>Eliminar</button>
+                <span className="category-management-name">
+                  {category.emoji} {category.name}
+                  {category.is_archived && <span className="category-archived-label"> · Archivada</span>}
+                </span>
+                {category.is_archived
+                  ? <button className="category-action-button" type="button" disabled={busy} onClick={() => requestCategoryRestoration(category)}>Restaurar</button>
+                  : <button className="category-action-button" type="button" disabled={busy || activeCategories.length <= 1}
+                    title={activeCategories.length <= 1 ? "Debe quedar al menos una sección activa" : undefined}
+                    onClick={() => void requestCategoryArchival(category)}>Archivar</button>}
               </div>;
             })}
           </div>
@@ -885,11 +938,13 @@ export default function App() {
 
       {confirmation && <Modal onClose={() => setConfirmation(null)} className="confirm-dialog">
         <div className="confirm-content">
-          <span className="confirm-icon" aria-hidden="true">🗑️</span>
+          <span className="confirm-icon" aria-hidden="true">
+            {confirmation.confirmLabel === "Archivar" ? "📦" : confirmation.confirmLabel === "Restaurar" ? "↩️" : "🗑️"}
+          </span>
           <h2>{confirmation.title}</h2><p>{confirmation.message}</p>
           <div className="confirm-actions">
             <button className="cancel-button" type="button" disabled={busy} onClick={() => setConfirmation(null)}>Cancelar</button>
-            <button className="danger-button" type="button" disabled={busy} onClick={() => void confirmation.onConfirm()}>{busy ? "Procesando…" : "Eliminar"}</button>
+            <button className="danger-button" type="button" disabled={busy} onClick={() => void confirmation.onConfirm()}>{busy ? "Procesando…" : confirmation.confirmLabel ?? "Eliminar"}</button>
           </div>
         </div>
       </Modal>}
@@ -926,6 +981,49 @@ function OverviewButton({ title, subtitle, total, disabled = false, selected = f
     <span className="overview-subtitle">{subtitle}</span>
     <span className="overview-total">{disabled ? "🔒" : formatCurrency(total)}</span>
   </button>;
+}
+
+function ExpenseTable({ expenses, categories, onDelete }: {
+  expenses: Expense[];
+  categories: Category[];
+  onDelete: (expense: Expense) => void;
+}) {
+  if (!expenses.length) {
+    return <p className="empty-table-state">No hay gastos registrados para este día.</p>;
+  }
+
+  return <div className="expense-table-wrap">
+    <table className="expense-table">
+      <thead><tr>
+        <th scope="col">Hora</th>
+        <th scope="col">Gasto</th>
+        <th scope="col">Sección</th>
+        <th scope="col">Detalle</th>
+        <th scope="col" className="expense-table-amount">Monto</th>
+        <th scope="col"><span className="visually-hidden">Acciones</span></th>
+      </tr></thead>
+      <tbody>{expenses.map((expense) => {
+        const category = categories.find((item) => item.id === expense.categoryId);
+        const detail = expense.note.split("\n").slice(1).join("\n");
+        return <tr key={expense.id}>
+          <td data-label="Hora">{expense.time}</td>
+          <td data-label="Gasto" className="expense-table-name">{expense.description}</td>
+          <td data-label="Sección">{category ? `${category.emoji} ${category.name}` : "Sección"}</td>
+          <td data-label="Detalle">{detail || "—"}</td>
+          <td data-label="Monto" className="expense-table-amount">{formatCurrency(expense.amount)}</td>
+          <td className="expense-table-actions">
+            <button className="delete-button" type="button" aria-label={`Eliminar gasto: ${expense.description}`}
+              onClick={() => onDelete(expense)}>×</button>
+          </td>
+        </tr>;
+      })}</tbody>
+      <tfoot><tr>
+        <th scope="row" colSpan={4}>Total</th>
+        <td className="expense-table-amount">{formatCurrency(expenses.reduce((sum, expense) => sum + expense.amount, 0))}</td>
+        <td />
+      </tr></tfoot>
+    </table>
+  </div>;
 }
 
 function Modal({ children, className, onClose }: { children: ReactNode; className: string; onClose: () => void }) {
