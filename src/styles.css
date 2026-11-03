@@ -4,7 +4,7 @@
   color-scheme: light;
   font-family: "DM Sans", sans-serif;
   color: #29332f;
-  background: #f2eee8;
+  background: var(--page-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --ink: #29332f;
@@ -12,25 +12,25 @@
   --green: #315f58;
   --green-dark: #244b46;
   --green-light: #dceae3;
-  --line: #e3ddd4;
+  --line: #d7cbbb;
   --orange: #d4864e;
   --white: #fff;
   --shadow: 0 18px 50px rgb(34 49 37 / 12%);
-  --page-bg: #f2eee8;
-  --surface: #fffdf9;
-  --surface-soft: #f0ebe4;
-  --border: #e3ddd4;
-  --border-soft: #eee8df;
-  --subtle-text: #766f67;
-  --placeholder: #a7a097;
-  --eyebrow: #8d877d;
-  --surface-raised: #fffdf9;
-  --selection: #e5eee7;
-  --selection-border: #91b2a1;
-  --focus-ring: #91b2a1;
-  --page-glow: rgb(223 210 192 / 48%);
-  --illustration-back: #e3e7d8;
-  --illustration-line: #c9d2c0;
+  --page-bg: #e2d7c7;
+  --surface: #eee4d5;
+  --surface-soft: #ddd0bd;
+  --border: #cdbda9;
+  --border-soft: #d9cbb8;
+  --subtle-text: #645c51;
+  --placeholder: #827666;
+  --eyebrow: #786e60;
+  --surface-raised: #e7dccb;
+  --selection: #d4dfd1;
+  --selection-border: #879b83;
+  --focus-ring: #879b83;
+  --page-glow: rgb(181 148 109 / 30%);
+  --illustration-back: #d7ddc9;
+  --illustration-line: #b7c1aa;
   --total-shadow: rgb(49 95 88 / 25%);
 }
 
@@ -714,12 +714,12 @@ h2 {
   height: 43px;
   place-items: center;
   border-radius: 14px;
-  background: #f4f3e8;
+  background: #e9e3d3;
   font-size: 20px;
 }
 
 .category-icon[data-category="Comida"] {
-  background: #fff0e3;
+  background: #f0dfce;
 }
 
 .category-icon[data-category="Transporte"] {

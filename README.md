@@ -54,3 +54,5 @@ También se puede empaquetar como app Android con Capacitor. Requiere Android St
 4. Ejecuta `npm run android:apk` para compilar el APK de depuración. Se genera en `android/app/build/outputs/apk/debug/app-debug.apk`. También puedes abrir el proyecto con `npm run android:open`.
 
 El APK incluye el código y los recursos de la app, pero no la base de datos. Los gastos continúan guardándose en Supabase. Para iniciar sesión desde el APK, agrega `cl.druminot10.controlgastos://login-callback` a las URL de retorno permitidas en Supabase. El código de la app abre el flujo de Google en el navegador y recibe de vuelta la sesión mediante ese enlace.
+
+En Android 15 y posteriores, Capacitor ajusta automáticamente los márgenes de la app para que el contenido no quede debajo de la barra de estado ni de la navegación del sistema.

@@ -356,7 +356,7 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-    if (themeColor) themeColor.content = theme === "dark" ? "#111b2b" : "#f2eee8";
+    if (themeColor) themeColor.content = theme === "dark" ? "#111b2b" : "#e2d7c7";
   }, [theme]);
 
   async function signInWithGoogle() {
