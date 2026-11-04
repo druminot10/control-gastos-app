@@ -64,8 +64,14 @@ html[data-theme="dark"] {
   box-sizing: border-box;
 }
 
-body {
+html,
+body,
+#root {
+  width: 100%;
   min-width: 320px;
+}
+
+body {
   min-height: 100vh;
   margin: 0;
   overflow-x: clip;
@@ -102,8 +108,17 @@ a:focus-visible {
 
 .app-shell {
   width: min(100% - 40px, 1000px);
+  min-width: 0;
   margin: 0 auto;
   padding-bottom: 110px;
+}
+
+.page-content,
+.period-section,
+.spending-section,
+.summary-grid > *,
+.intro > * {
+  min-width: 0;
 }
 
 .topbar {
@@ -525,6 +540,7 @@ h1 span {
 }
 
 .year-day-breakdown {
+  min-width: 0;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--border-soft);
@@ -1109,7 +1125,8 @@ h2 {
 }
 
 .day-details-dialog {
-  width: min(920px, calc(100vw - 24px));
+  width: min(920px, calc(100% - 24px));
+  max-width: min(920px, calc(100vw - 24px));
 }
 
 .expense-dialog,
@@ -1653,14 +1670,18 @@ h2 {
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 720px), (max-device-width: 720px) {
   .app-shell {
-    width: min(100% - 32px, 480px);
+    width: min(100%, 1000px);
+    padding-right: 16px;
+    padding-left: 16px;
   }
 
   .topbar {
+    flex-wrap: wrap;
     min-height: 67px;
     gap: 8px;
+    padding: 10px 0;
   }
 
   .brand {
@@ -1668,8 +1689,7 @@ h2 {
   }
 
   .local-badge {
-    gap: 6px;
-    font-size: 9px;
+    display: none;
   }
 
   .theme-toggle {
@@ -1681,6 +1701,7 @@ h2 {
 
   .account-actions {
     gap: 5px;
+    margin-left: auto;
   }
 
   .intro {
@@ -1703,7 +1724,7 @@ h2 {
   }
 
   .summary-grid {
-    grid-template-columns: 1fr 0.73fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.73fr);
     gap: 10px;
   }
 
@@ -1755,7 +1776,8 @@ h2 {
   }
 
   .expense-toolbar {
-    align-items: center;
+    flex-wrap: wrap;
+    align-items: flex-start;
   }
 
   .detail-summary {
@@ -1775,6 +1797,12 @@ h2 {
     padding: 20px 16px 16px;
   }
 
+  .expense-dialog,
+  .day-details-dialog {
+    width: 100%;
+    max-width: 100%;
+  }
+
   .day-details-dialog .dialog-heading {
     gap: 10px;
     margin-bottom: 18px;
@@ -1789,27 +1817,27 @@ h2 {
     font-size: 19px;
   }
 
-  .day-details-dialog .expense-table-wrap {
+  .expense-table-wrap {
     overflow: visible;
     border: 0;
     background: transparent;
   }
 
-  .day-details-dialog .expense-table {
+  .expense-table {
     display: block;
     min-width: 0;
   }
 
-  .day-details-dialog .expense-table thead {
+  .expense-table thead {
     display: none;
   }
 
-  .day-details-dialog .expense-table tbody {
+  .expense-table tbody {
     display: grid;
     gap: 8px;
   }
 
-  .day-details-dialog .expense-table tbody tr {
+  .expense-table tbody tr {
     display: grid;
     min-width: 0;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1819,7 +1847,7 @@ h2 {
     background: var(--surface);
   }
 
-  .day-details-dialog .expense-table tbody td {
+  .expense-table tbody td {
     display: flex;
     min-width: 0;
     align-items: flex-start;
@@ -1830,7 +1858,7 @@ h2 {
     overflow-wrap: anywhere;
   }
 
-  .day-details-dialog .expense-table tbody td::before {
+  .expense-table tbody td::before {
     flex: 0 0 auto;
     color: var(--muted);
     content: attr(data-label);
@@ -1838,27 +1866,27 @@ h2 {
     font-weight: 600;
   }
 
-  .day-details-dialog .expense-table tbody td[data-label="Gasto"],
-  .day-details-dialog .expense-table tbody td[data-label="Detalle"] {
+  .expense-table tbody td[data-label="Gasto"],
+  .expense-table tbody td[data-label="Detalle"] {
     grid-column: 1 / -1;
   }
 
-  .day-details-dialog .expense-table tbody td[data-label="Gasto"] {
+  .expense-table tbody td[data-label="Gasto"] {
     font-size: 12px;
     font-weight: 700;
   }
 
-  .day-details-dialog .expense-table tbody td[data-label="Monto"] {
+  .expense-table tbody td[data-label="Monto"] {
     align-items: center;
     color: var(--green);
   }
 
-  .day-details-dialog .expense-table tbody td.expense-table-actions {
+  .expense-table tbody td.expense-table-actions {
     align-items: center;
     justify-content: flex-end;
   }
 
-  .day-details-dialog .expense-table tfoot {
+  .expense-table tfoot {
     display: block;
     margin-top: 8px;
     overflow: hidden;
@@ -1866,14 +1894,14 @@ h2 {
     border-radius: 11px;
   }
 
-  .day-details-dialog .expense-table tfoot tr {
+  .expense-table tfoot tr {
     display: flex;
     align-items: center;
     justify-content: space-between;
   }
 
-  .day-details-dialog .expense-table tfoot th,
-  .day-details-dialog .expense-table tfoot td {
+  .expense-table tfoot th,
+  .expense-table tfoot td {
     padding: 10px;
     border: 0;
   }
@@ -1943,7 +1971,7 @@ h2 {
   }
 }
 
-@media (max-width: 360px) {
+@media (max-width: 360px), (max-device-width: 360px) {
   .local-badge {
     font-size: 0;
   }

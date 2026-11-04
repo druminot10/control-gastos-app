@@ -169,6 +169,7 @@ export default function App() {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [dayDetailsDate, setDayDetailsDate] = useState<string | null>(null);
+  const monthDetailsRef = useRef<HTMLDivElement>(null);
   const [confirmation, setConfirmation] = useState<PendingConfirmation | null>(null);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
@@ -588,6 +589,15 @@ export default function App() {
     setSelectedMonth(candidate.slice(0, 7));
   }
 
+  function selectYearMonth(month: string, date: string) {
+    setSelectedMonth(month);
+    setSelectedDate(date > today ? today : date);
+    requestAnimationFrame(() => monthDetailsRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    }));
+  }
+
   const calendarMonthStart = parseLocalDate(`${selectedDate.slice(0, 7)}-01`);
   const calendarMonthEnd = new Date(calendarMonthStart.getFullYear(), calendarMonthStart.getMonth() + 1, 0);
   const selectedMonthStart = parseLocalDate(`${selectedMonth}-01`);
@@ -786,42 +796,16 @@ export default function App() {
                       title={new Intl.DateTimeFormat("es-CL", { month: "long" }).format(new Date(Number(year), index, 1))}
                       subtitle={`${monthRows.length} ${monthRows.length === 1 ? "gasto" : "gastos"}`}
                       total={monthRows.reduce((sum, expense) => sum + expense.amount, 0)} disabled={!allowed}
-                      selected={selectedMonth === key} onClick={() => {
-                        setSelectedMonth(key);
-                        setSelectedDate(monthDay > today ? today : monthDay);
-                      }} />;
+                      selected={selectedMonth === key} onClick={() => selectYearMonth(key, monthDay)} />;
                   })}
                 </div>
                 {selectedMonth && (
-                  <div className="year-day-breakdown">
-                    <h3 className="breakdown-heading">Calendario de {new Intl.DateTimeFormat("es-CL", {
-                      month: "long", year: "numeric",
-                    }).format(selectedMonthStart)}</h3>
-                    <div className="period-overview month-overview">
-                      {["L", "M", "X", "J", "V", "S", "D"].map((day, index) =>
-                        <span className="calendar-weekday" key={`${day}-${index}`}>{day}</span>)}
-                      {Array.from({ length: (selectedMonthStart.getDay() + 6) % 7 }, (_, index) =>
-                        <span className="calendar-spacer" key={`year-blank-${index}`} />)}
-                      {Array.from({ length: selectedMonthEnd.getDate() }, (_, index) => {
-                        const date = `${selectedMonth}-${String(index + 1).padStart(2, "0")}`;
-                        const allowed = date >= profileDate && date <= today;
-                        return <button key={date} type="button"
-                          className={`calendar-day${date === selectedDate ? " is-selected" : ""}${totalFor(date) ? " has-expenses" : ""}`}
-                          disabled={!allowed}
-                          aria-label={`${date.slice(-2)} de ${formatDate(date, { month: "long" })}${allowed ? "" : ", bloqueado"}`}
-                          onClick={() => {
-                            setSelectedDate(date);
-                            setDayDetailsDate(date);
-                          }}>
-                          <span>{index + 1}</span>
-                          {totalFor(date) > 0 && <span className="calendar-day-total">{formatCurrency(totalFor(date))}</span>}
-                          {!allowed && <span className="calendar-lock" aria-hidden="true">🔒</span>}
-                        </button>;
-                      })}
-                    </div>
+                  <div className="year-day-breakdown" ref={monthDetailsRef}>
                     <div className="year-expenses">
                       <div className="year-expenses-heading">
-                        <h3 className="breakdown-heading">Gastos del mes</h3>
+                        <h3 className="breakdown-heading">Gastos de {new Intl.DateTimeFormat("es-CL", {
+                          month: "long", year: "numeric",
+                        }).format(selectedMonthStart)}</h3>
                         <span>{formatCurrency(selectedMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0))}</span>
                       </div>
                       {selectedMonthDays.length ? (
@@ -856,6 +840,31 @@ export default function App() {
                           ))}
                         </div>
                       ) : <p className="table-hint">No hay gastos para este mes.</p>}
+                    </div>
+                    <h3 className="breakdown-heading">Calendario de {new Intl.DateTimeFormat("es-CL", {
+                      month: "long", year: "numeric",
+                    }).format(selectedMonthStart)}</h3>
+                    <div className="period-overview month-overview">
+                      {["L", "M", "X", "J", "V", "S", "D"].map((day, index) =>
+                        <span className="calendar-weekday" key={`${day}-${index}`}>{day}</span>)}
+                      {Array.from({ length: (selectedMonthStart.getDay() + 6) % 7 }, (_, index) =>
+                        <span className="calendar-spacer" key={`year-blank-${index}`} />)}
+                      {Array.from({ length: selectedMonthEnd.getDate() }, (_, index) => {
+                        const date = `${selectedMonth}-${String(index + 1).padStart(2, "0")}`;
+                        const allowed = date >= profileDate && date <= today;
+                        return <button key={date} type="button"
+                          className={`calendar-day${date === selectedDate ? " is-selected" : ""}${totalFor(date) ? " has-expenses" : ""}`}
+                          disabled={!allowed}
+                          aria-label={`${date.slice(-2)} de ${formatDate(date, { month: "long" })}${allowed ? "" : ", bloqueado"}`}
+                          onClick={() => {
+                            setSelectedDate(date);
+                            setDayDetailsDate(date);
+                          }}>
+                          <span>{index + 1}</span>
+                          {totalFor(date) > 0 && <span className="calendar-day-total">{formatCurrency(totalFor(date))}</span>}
+                          {!allowed && <span className="calendar-lock" aria-hidden="true">🔒</span>}
+                        </button>;
+                      })}
                     </div>
                   </div>
                 )}
@@ -1012,11 +1021,12 @@ function Brand() {
   return <a className="brand" href="#" aria-label="Mis gastos, inicio">
     <span className="brand-mark" aria-hidden="true">
       <svg viewBox="0 0 64 64" focusable="false">
-        <path d="M15 23.5A5.5 5.5 0 0 1 20.5 18H48a4 4 0 0 1 4 4v4H22a7 7 0 0 0-7 7z" fill="#a9d8ca" />
-        <path d="M15 32a6 6 0 0 1 6-6h27a4 4 0 0 1 4 4v15a5 5 0 0 1-5 5H20a5 5 0 0 1-5-5z" fill="#fff" />
-        <path d="M42 35h10v9H42a4.5 4.5 0 0 1 0-9z" fill="#e8a96d" />
-        <circle cx="44" cy="39.5" r="1.5" fill="#fff" />
-        <path d="m22 22 5-5 5 3 8-8" fill="none" stroke="#f0bd7d" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
+        <rect width="64" height="64" rx="18" fill="#214d45" />
+        <path d="M19 13h20l9 9v28a4 4 0 0 1-4 4H19a4 4 0 0 1-4-4V17a4 4 0 0 1 4-4Z" fill="#f7f2e8" />
+        <path d="M39 13v9h9" fill="#d9e7dd" />
+        <path d="M22 43v-7h5v7m5 0V30h5v13m5 0V25h5v18" fill="none" stroke="#38766a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+        <circle cx="45" cy="43" r="9" fill="#e7a65c" stroke="#214d45" strokeWidth="2" />
+        <path d="M45 38v10m3-8c-.7-1-1.6-1.5-3-1.5-1.6 0-2.5.8-2.5 1.8 0 2.8 5.5 1.1 5.5 4 0 1.2-1.1 2-2.8 2-1.4 0-2.5-.5-3.2-1.5" fill="none" stroke="#fffaf0" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
       </svg>
     </span>
     <span>mis gastos<span className="brand-period">.</span></span>
