@@ -68,6 +68,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  overflow-x: clip;
   background:
     radial-gradient(ellipse at 85% 2%, var(--page-glow), transparent 30rem),
     var(--page-bg);
@@ -971,11 +972,14 @@ h2 {
 }
 
 .expense-dialog {
-  width: min(100% - 28px, 460px);
-  max-width: 460px;
+  width: min(460px, calc(100vw - 32px));
+  min-width: 0;
+  max-width: 100%;
   max-height: min(92vh, 760px);
   padding: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 0;
   border-radius: 22px;
   background: var(--surface);
@@ -983,8 +987,24 @@ h2 {
 }
 
 .day-details-dialog {
-  width: min(100% - 24px, 920px);
-  max-width: 920px;
+  width: min(920px, calc(100vw - 24px));
+}
+
+.expense-dialog,
+.confirm-dialog {
+  box-sizing: border-box;
+}
+
+.expense-dialog .expense-form,
+.confirm-dialog .confirm-content {
+  min-width: 0;
+}
+
+.expense-form input,
+.expense-form select,
+.expense-form textarea {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .expense-dialog::backdrop {
@@ -1386,10 +1406,16 @@ h2 {
   position: fixed;
   z-index: 20;
   inset: 0;
-  display: grid;
-  overflow: auto;
-  place-items: center;
-  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
   background: rgb(17 27 43 / 48%);
   backdrop-filter: blur(3px);
 }
@@ -1398,7 +1424,16 @@ h2 {
 .modal-backdrop > .confirm-dialog {
   position: relative;
   margin: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   color: var(--ink);
+}
+
+@supports (height: 100dvh) {
+  .expense-dialog {
+    max-height: min(760px, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px));
+  }
 }
 
 .account-actions {
@@ -1666,7 +1701,16 @@ h2 {
   }
 
   .expense-form {
-    padding: 24px 21px 19px;
+    padding: 24px 16px 19px;
+  }
+
+  .field-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .travel-preset-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
