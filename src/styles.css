@@ -530,6 +530,128 @@ h1 span {
   border-top: 1px solid var(--border-soft);
 }
 
+.year-expenses {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.year-expenses-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.year-expenses-heading .breakdown-heading {
+  margin: 0;
+}
+
+.year-expenses-heading > span {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.year-expense-days {
+  display: grid;
+  gap: 8px;
+}
+
+.year-expense-day {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+}
+
+.year-expense-day-heading {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-soft);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.year-expense-day-heading > span:first-child {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.year-expense-day-heading > span:nth-child(2),
+.year-expense-day-link {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.year-expense-day-heading > strong {
+  color: var(--green);
+  font-size: 12px;
+}
+
+.year-expense-day-link {
+  justify-self: end;
+}
+
+.year-expense-rows {
+  display: grid;
+  margin: 0;
+  padding: 0 12px;
+  list-style: none;
+}
+
+.year-expense-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 11px;
+}
+
+.year-expense-row:last-child {
+  border-bottom: 0;
+}
+
+.year-expense-row > time {
+  color: var(--muted);
+}
+
+.year-expense-description {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  overflow-wrap: anywhere;
+}
+
+.year-expense-description > strong {
+  color: var(--ink);
+}
+
+.year-expense-description > span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.year-expense-row > strong {
+  color: var(--ink);
+  text-align: right;
+  white-space: nowrap;
+}
+
 .breakdown-heading {
   margin: 0 0 9px;
   color: var(--muted);
@@ -1647,6 +1769,113 @@ h2 {
 
   .expense-toolbar-actions {
     gap: 5px;
+  }
+
+  .day-details-dialog .expense-form {
+    padding: 20px 16px 16px;
+  }
+
+  .day-details-dialog .dialog-heading {
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .day-details-dialog .dialog-heading > div {
+    min-width: 0;
+  }
+
+  .day-details-dialog .dialog-heading h2 {
+    overflow-wrap: anywhere;
+    font-size: 19px;
+  }
+
+  .day-details-dialog .expense-table-wrap {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .day-details-dialog .expense-table {
+    display: block;
+    min-width: 0;
+  }
+
+  .day-details-dialog .expense-table thead {
+    display: none;
+  }
+
+  .day-details-dialog .expense-table tbody {
+    display: grid;
+    gap: 8px;
+  }
+
+  .day-details-dialog .expense-table tbody tr {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface);
+  }
+
+  .day-details-dialog .expense-table tbody td {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px;
+    border-bottom: 1px solid var(--border-soft);
+    overflow-wrap: anywhere;
+  }
+
+  .day-details-dialog .expense-table tbody td::before {
+    flex: 0 0 auto;
+    color: var(--muted);
+    content: attr(data-label);
+    font-size: 9px;
+    font-weight: 600;
+  }
+
+  .day-details-dialog .expense-table tbody td[data-label="Gasto"],
+  .day-details-dialog .expense-table tbody td[data-label="Detalle"] {
+    grid-column: 1 / -1;
+  }
+
+  .day-details-dialog .expense-table tbody td[data-label="Gasto"] {
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .day-details-dialog .expense-table tbody td[data-label="Monto"] {
+    align-items: center;
+    color: var(--green);
+  }
+
+  .day-details-dialog .expense-table tbody td.expense-table-actions {
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .day-details-dialog .expense-table tfoot {
+    display: block;
+    margin-top: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+  }
+
+  .day-details-dialog .expense-table tfoot tr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .day-details-dialog .expense-table tfoot th,
+  .day-details-dialog .expense-table tfoot td {
+    padding: 10px;
+    border: 0;
   }
 
   .manage-categories-button {

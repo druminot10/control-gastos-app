@@ -201,6 +201,24 @@ export default function App() {
     (categoryFilter === "all" || expense.categoryId === categoryFilter))
     .sort((a, b) => b.time.localeCompare(a.time)),
   [expenses, dayDetailsDate, selectedDate, categoryFilter]);
+  const selectedMonthExpenses = useMemo(() => expenses.filter((expense) =>
+    expense.date.startsWith(selectedMonth) &&
+    (categoryFilter === "all" || expense.categoryId === categoryFilter))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time)),
+  [expenses, selectedMonth, categoryFilter]);
+  const selectedMonthDays = useMemo(() => {
+    const grouped = new Map<string, Expense[]>();
+    for (const expense of selectedMonthExpenses) {
+      const dayExpenses = grouped.get(expense.date) ?? [];
+      dayExpenses.push(expense);
+      grouped.set(expense.date, dayExpenses);
+    }
+    return Array.from(grouped, ([date, dayExpenses]) => ({
+      date,
+      expenses: dayExpenses,
+      total: dayExpenses.reduce((sum, expense) => sum + expense.amount, 0),
+    }));
+  }, [selectedMonthExpenses]);
   const periodTotal = periodExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   const monthlyTotal = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -800,6 +818,44 @@ export default function App() {
                           {!allowed && <span className="calendar-lock" aria-hidden="true">🔒</span>}
                         </button>;
                       })}
+                    </div>
+                    <div className="year-expenses">
+                      <div className="year-expenses-heading">
+                        <h3 className="breakdown-heading">Gastos del mes</h3>
+                        <span>{formatCurrency(selectedMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0))}</span>
+                      </div>
+                      {selectedMonthDays.length ? (
+                        <div className="year-expense-days">
+                          {selectedMonthDays.map(({ date, expenses: dayExpenses, total }) => (
+                            <section className="year-expense-day" key={date}>
+                              <button className="year-expense-day-heading" type="button" onClick={() => {
+                                setSelectedDate(date);
+                                setDayDetailsDate(date);
+                              }}>
+                                <span>{formatDate(date, { weekday: "long", day: "numeric", month: "long" })}</span>
+                                <span>{dayExpenses.length} {dayExpenses.length === 1 ? "gasto" : "gastos"}</span>
+                                <strong>{formatCurrency(total)}</strong>
+                                <span className="year-expense-day-link">Ver día ›</span>
+                              </button>
+                              <ul className="year-expense-rows">
+                                {dayExpenses.map((expense) => {
+                                  const category = categories.find((item) => item.id === expense.categoryId);
+                                  const detail = expense.note.split("\n").slice(1).join("\n");
+                                  return <li className="year-expense-row" key={expense.id}>
+                                    <time>{expense.time}</time>
+                                    <span className="year-expense-description">
+                                      <strong>{expense.description}</strong>
+                                      <span>{category ? `${category.emoji} ${category.name}` : "Sección"}</span>
+                                      {detail && <span>{detail}</span>}
+                                    </span>
+                                    <strong>{formatCurrency(expense.amount)}</strong>
+                                  </li>;
+                                })}
+                              </ul>
+                            </section>
+                          ))}
+                        </div>
+                      ) : <p className="table-hint">No hay gastos para este mes.</p>}
                     </div>
                   </div>
                 )}
